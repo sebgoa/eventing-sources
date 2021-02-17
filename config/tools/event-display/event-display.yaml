@@ -17,10 +17,12 @@ apiVersion: serving.knative.dev/v1alpha1
 kind: Service
 metadata:
   name: event-display
+  labels:
+    contrib.eventing.knative.dev/release: devel
 spec:
   runLatest:
     configuration:
       revisionTemplate:
         spec:
           container:
-            image: github.com/knative/eventing-sources/cmd/event_display
+            image: ko://knative.dev/eventing-contrib/cmd/event_display

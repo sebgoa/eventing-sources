@@ -1,9 +1,13 @@
 required = [
-    "github.com/knative/test-infra/scripts",
-    "github.com/knative/test-infra/tools/dep-collector",
+    "knative.dev/test-infra/scripts",
+    "knative.dev/test-infra/tools/dep-collector",
+    # for integration tests
+    "knative.dev/eventing/test/test_images/logevents",
+    "knative.dev/eventing/test/test_images/sendevents",
+    "knative.dev/eventing/test/test_images/transformevents",
+    "knative.dev/eventing/test/test_images/performance",
+
     "github.com/emicklei/go-restful",
-    "github.com/onsi/ginkgo", # for test framework
-    "github.com/onsi/gomega", # for test matchers
     "k8s.io/client-go/plugin/pkg/client/auth/gcp", # for development against gcp
     "k8s.io/code-generator/cmd/deepcopy-gen", # for go generate
     "sigs.k8s.io/controller-tools/cmd/controller-gen", # for crd/rbac generation
@@ -13,9 +17,8 @@ required = [
     "sigs.k8s.io/controller-runtime/pkg/manager",
     "sigs.k8s.io/controller-runtime/pkg/runtime/signals",
     "sigs.k8s.io/controller-runtime/pkg/source",
-    "sigs.k8s.io/testing_frameworks/integration", # for integration testing
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
-    ]
+    "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
+]
 
 [prune]
   go-tests = true
@@ -23,7 +26,20 @@ required = [
   non-go = true
 
 [[prune.project]]
-  name = "github.com/knative/test-infra"
+  name = "knative.dev/test-infra"
+  non-go = false
+
+[[prune.project]]
+  name = "knative.dev/eventing"
+  non-go = false
+
+[[override]]
+  name = "gopkg.in/yaml.v2"
+  version = "v2.2.4"
+
+[[prune.project]]
+  name = "knative.dev/pkg"
+  unused-packages = false
   non-go = false
 
 [[prune.project]]
@@ -35,54 +51,69 @@ required = [
   name = "k8s.io/gengo"
   unused-packages = false
 
-# Constrain the version of knative/pkg we would like to import.
-# This controls when we upgrade apis independently of Serving.
 [[override]]
-  name = "github.com/knative/pkg"
-  # HEAD as of 2019-04-26
-  revision = "52709ba13d9b77473fe37f2481312a62f63a7d6d"
+  name = "knative.dev/pkg"
+  branch = "master"
 
+[[constraint]]
+  name = "github.com/go-kivik/kivik"
+  branch = "master"
+
+[[constraint]]
+  name = "github.com/go-kivik/couchdb"
+  branch = "master"
+
+# TODO why is this overridden?
+[[override]]
+  name = "github.com/Shopify/sarama"
+  version = "1.21.0"
+
+# Overridden to ensure compatibility with GKE
+# GKE version as of 2020-01-06 is 1.15
 [[override]]
   name = "k8s.io/api"
-  version = "kubernetes-1.12.6"
+  version = "kubernetes-1.16.4"
 
+# Overridden to ensure compatibility with GKE
+# GKE version as of 2020-01-06 is 1.15
 [[override]]
   name = "k8s.io/apimachinery"
-  version = "kubernetes-1.12.6"
+  version = "kubernetes-1.16.4"
 
-[[override]]
-  name = "k8s.io/code-generator"
-  version = "kubernetes-1.12.6"
-
-[[override]]
-  name = "k8s.io/client-go"
-  version = "kubernetes-1.12.6"
-
+# Overridden to ensure compatibility with GKE
+# GKE version as of 2020-01-06 is 1.15
 [[override]]
   name = "k8s.io/apiextensions-apiserver"
-  version = "kubernetes-1.12.6"
+  version = "kubernetes-1.16.4"
+
+# Overridden to ensure compatibility with GKE
+# GKE version as of 2020-01-06 is 1.15
+[[override]]
+  name = "k8s.io/code-generator"
+  version = "kubernetes-1.16.4"
+
+# Overridden to ensure compatibility with GKE
+# GKE version as of 2020-01-06 is 1.15
+[[override]]
+  name = "k8s.io/client-go"
+  version = "kubernetes-1.16.4"
 
 [[override]]
   name = "cloud.google.com/go"
   revision = "90f2606161ee6a14efe2ca79fc05ac2b8efe250b"
 
 [[constraint]]
-  name = "github.com/knative/serving"
-  version = "v0.5.0"
-
-# Bring build along for serving.
-[[override]]
-  name = "github.com/knative/build"
-  version = "v0.5.0"
+  name = "knative.dev/serving"
+  branch = "master"
 
 [[constraint]]
-  name = "github.com/knative/eventing"
-  # HEAD as of 2019-05-12. Needed to import EventType API object.
-  revision = "53ee52c1292bc6f6807512a9081b9e64055f2bd2"
+  name = "knative.dev/eventing"
+  branch = "master"
 
 [[constraint]]
   name="sigs.k8s.io/controller-runtime"
-  version = "=0.1.9"
+  # Bump it to latest version to be compatible with k8s 1.16.4
+  version = "=0.4.0"
 
 # For dependency below: Refer to issue https://github.com/golang/dep/issues/1799
 [[override]]
@@ -98,16 +129,41 @@ required = [
 
 [[constraint]]
   name = "github.com/aws/aws-sdk-go"
-  version = "1.15.73"
+  version = "1.29.21"
 
 [[constraint]]
   name = "github.com/gorilla/websocket"
   version = "1.4.0"
 
-[[override]]
+[[constraint]]
   name = "github.com/cloudevents/sdk-go"
-  version = "=0.7.0"
+  version = "v2.0.0-preview3"
 
 [[constraint]]
   name = "github.com/apache/camel-k"
-  version = "0.3.3"
+  version = "1.0.0-RC2"
+
+# needed because pkg upgraded
+[[override]]
+  name = "go.uber.org/zap"
+  revision = "67bc79d13d155c02fd008f721863ff8cc5f30659"
+
+# Required for opencensus.
+[[override]]
+  name = "google.golang.org/genproto"
+  revision = "357c62f0e4bbba7e6cc403ae09edcf3e2b9028fe"
+
+# Required for opencensus.
+[[constraint]]
+  name = "go.opencensus.io"
+  version = "0.22.0"
+
+# Required for opencensus.
+[[override]]
+  name = "github.com/census-instrumentation/opencensus-proto"
+  version = "0.2.0"
+
+# Required for opencensus.
+[[override]]
+  name="github.com/golang/protobuf"
+  version = "1.3.2"

@@ -1,8 +1,14 @@
+# In order to be an approver you need to be an approver in the eventing repo
+# or fulfill the requirements in https://github.com/knative/community/blob/master/ROLES.md#approver
 approvers:
 - evankanderson
 - grantr
-- vaikas-google
+- Harwayne
+- vaikas
 - n3wscott
+- matzew
+- nachocano
+- lionelvillard
 
 # Reviewers are suggested from the reviewers list first, then the approvers
 # list. To add reviewers while spreading the load among existing approvers,
@@ -10,8 +16,12 @@ approvers:
 reviewers:
 - evankanderson
 - grantr
-- vaikas-google
-- n3wscott
-# Add reviewers below
 - Harwayne
+- vaikas
+- n3wscott
 - matzew
+- nachocano
+- lionelvillard
+# Add reviewers below
+- aslom
+- lberk

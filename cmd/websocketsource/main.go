@@ -20,11 +20,12 @@ import (
 	"context"
 	"flag"
 	"log"
+	"os"
 
-	"github.com/knative/eventing-sources/pkg/kncloudevents"
+	"knative.dev/eventing-contrib/pkg/kncloudevents"
 
-	"github.com/cloudevents/sdk-go/pkg/cloudevents"
-	"github.com/cloudevents/sdk-go/pkg/cloudevents/types"
+	"github.com/cloudevents/sdk-go/legacy/pkg/cloudevents"
+	"github.com/cloudevents/sdk-go/legacy/pkg/cloudevents/types"
 
 	"github.com/gorilla/websocket"
 )
@@ -47,6 +48,11 @@ func init() {
 
 func main() {
 	flag.Parse()
+
+	k_sink := os.Getenv("K_SINK")
+	if k_sink != "" {
+		sink = k_sink
+	}
 
 	// "source" flag must not be empty for operation.
 	if source == "" {
@@ -77,13 +83,13 @@ func main() {
 		}
 
 		event := cloudevents.Event{
-			Context: cloudevents.EventContextV02{
+			Context: cloudevents.EventContextV1{
 				Type:   eventType,
-				Source: *types.ParseURLRef(eventSource),
-			}.AsV02(),
+				Source: *types.ParseURIRef(eventSource),
+			}.AsV1(),
 			Data: message,
 		}
-		if _, err := ce.Send(context.TODO(), event); err != nil {
+		if _, _, err := ce.Send(context.TODO(), event); err != nil {
 			log.Printf("sending event to channel failed: %v", err)
 		}
 	}

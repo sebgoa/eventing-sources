@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"log"
 
-	cloudevents "github.com/cloudevents/sdk-go"
-	"github.com/knative/eventing-sources/pkg/kncloudevents"
+	cloudevents "github.com/cloudevents/sdk-go/legacy"
+	"knative.dev/eventing-contrib/pkg/kncloudevents"
 )
 
 /*
@@ -33,7 +33,7 @@ Validation: valid
 Context Attributes,
   SpecVersion: 0.2
   Type: dev.knative.eventing.samples.heartbeat
-  Source: https://github.com/knative/eventing-sources/cmd/heartbeats/#local/demo
+  Source: https://knative.dev/eventing-contrib/cmd/heartbeats/#local/demo
   ID: 3d2b5a1f-10ca-437b-a374-9c49e43c02fb
   Time: 2019-03-14T21:21:29.366002Z
   ContentType: application/json

@@ -18,20 +18,18 @@ Before submitting a PR, see also [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ### Requirements
 
-You must have the core of [Knative](http://github.com/knative/serving) running
-on your cluster.
+You must have the core of [Knative Serving](http://github.com/knative/serving)
+running on your cluster.
 
-You must have [Knative Eventing](http://github.com/knative/serving) running on
+You must have [Knative Eventing](http://github.com/knative/eventing) running on
 your cluster.
 
-You must have
-[ko](https://github.com/google/go-containerregistry/blob/master/cmd/ko/README.md)
-installed.
+You must have [ko](https://github.com/google/ko) installed.
 
 ### Checkout your fork
 
 The Go tools require that you clone the repository to the
-`src/github.com/knative/eventing-sources` directory in your
+`src/knative.dev/eventing-contrib` directory in your
 [`GOPATH`](https://github.com/golang/go/wiki/SettingGOPATH).
 
 To check out this repository:
@@ -41,11 +39,11 @@ To check out this repository:
 1. Clone it to your machine:
 
 ```shell
-mkdir -p ${GOPATH}/src/github.com/knative
-cd ${GOPATH}/src/github.com/knative
-git clone git@github.com:${YOUR_GITHUB_USERNAME}/eventing-sources.git
-cd eventing-sources
-git remote add upstream git@github.com:knative/eventing-sources.git
+mkdir -p ${GOPATH}/src/knative.dev
+cd ${GOPATH}/src/knative.dev
+git clone git@github.com:${YOUR_GITHUB_USERNAME}/eventing-contrib.git
+cd eventing-contrib
+git remote add upstream git@github.com:knative/eventing-contrib.git
 git remote set-url --push upstream no_push
 ```
 
@@ -57,42 +55,40 @@ follows.
 
 ## Installing Sources
 
-Once you've [setup your development environment](#getting-started), install
-sources _Github Source_ and _AWS SQS Source_ with:
-
-```shell
-ko apply -f config/
-```
-
-or install a single source _Camel Source_, _Gcppubsub Source_, _Kafka Source_
-with
+Once you've [setup your development environment](#getting-started), install any
+of the sources _Github Source_, _AWS SQS Source_, _Camel Source_, _Kafka Source_
+with:
 
 ```
-ko apply -f contrib/<source_name>/
+ko apply -f <source_name>/config  # e.g. github/config
 ```
 
 These commands are idempotent, so you can run them at any time to update your
 deployment.
 
-You can see things running with:
+If you applied the _GitHub Source_, you can see things running with:
 
 ```shell
 $ kubectl -n knative-sources get pods
-NAME                   READY     STATUS    RESTARTS   AGE
-controller-manager-0   1/1       Running   0          2h
+NAME                          READY     STATUS    RESTARTS   AGE
+github-controller-manager-0   1/1       Running   0          2h
 ```
 
-You can access the Eventing Manager's logs with:
+You can access the Github eventing manager's logs with:
 
 ```shell
-kubectl -n knative-sources logs $(kubectl -n knative-sources get pods -l control-plane=controller-manager -o name)
+kubectl -n knative-sources logs \
+    $(kubectl \
+        -n knative-sources \
+        get pods \
+        -l control-plane=github-controller-manager \
+        -o name \
+    )
 ```
 
-_See
-[contrib/gcppubsub/samples/README.md](./contrib/gcppubsub/samples/README.md),
-[contrib/camel/samples/README.md](./contrib/camel/samples/README.md),
-[contrib/kafka/samples/README.md](./contrib/kafka/samples/README.md) for
-instructions on installing the Gcppubsub Source, Camel Source and Kafka Source._
+_See [camel/source/samples/README.md](./camel/source/samples/README.md),
+[kafka/source/README.md](./kafka/source/README.md) for instructions on
+installing the Camel Source and Kafka Source._
 
 ## Iterating
 
@@ -100,7 +96,7 @@ As you make changes to the code-base:
 
 - **If you change a package's deps** (including adding external dep), then you
   must run [`./hack/update-deps.sh`](./hack/update-deps.sh).
-- **If you change a type definition ([pkg/apis/](./pkg/apis/.)),** then you must
+- **If you change a type definition (\<source_name\>/pkg/apis/),** then you must
   run [`./hack/update-codegen.sh`](./hack/update-codegen.sh). _This also runs
   [`./hack/update-deps.sh`](./hack/update-deps.sh)._
 
@@ -131,7 +127,7 @@ Running tests as you make changes to the code-base is pretty simple. See
 You can delete `Knative Sources` with:
 
 ```shell
-ko delete -f config/
+ko delete -f <source_name>/config/
 ```
 
 <!--

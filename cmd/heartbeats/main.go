@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -25,10 +26,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/knative/eventing-sources/pkg/kncloudevents"
+	duckv1 "knative.dev/pkg/apis/duck/v1"
 
-	"github.com/cloudevents/sdk-go/pkg/cloudevents"
-	"github.com/cloudevents/sdk-go/pkg/cloudevents/types"
+	"knative.dev/eventing-contrib/pkg/kncloudevents"
+
+	cloudevents "github.com/cloudevents/sdk-go/legacy"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -38,12 +40,16 @@ type Heartbeat struct {
 }
 
 var (
-	sink      string
-	label     string
-	periodStr string
+	eventSource string
+	eventType   string
+	sink        string
+	label       string
+	periodStr   string
 )
 
 func init() {
+	flag.StringVar(&eventSource, "eventSource", "", "the event-source (CloudEvents)")
+	flag.StringVar(&eventType, "eventType", "dev.knative.eventing.samples.heartbeat", "the event-type (CloudEvents)")
 	flag.StringVar(&sink, "sink", "", "the host url to heartbeat to")
 	flag.StringVar(&label, "label", "", "a special label")
 	flag.StringVar(&periodStr, "period", "5", "the number of seconds between heartbeats")
@@ -51,13 +57,19 @@ func init() {
 
 type envConfig struct {
 	// Sink URL where to send heartbeat cloudevents
-	Sink string `envconfig:"SINK"`
+	Sink string `envconfig:"K_SINK"`
+
+	// CEOverrides are the CloudEvents overrides to be applied to the outbound event.
+	CEOverrides string `envconfig:"K_CE_OVERRIDES"`
 
 	// Name of this pod.
 	Name string `envconfig:"POD_NAME" required:"true"`
 
 	// Namespace this pod exists in.
 	Namespace string `envconfig:"POD_NAMESPACE" required:"true"`
+
+	// Whether to run continuously or exit.
+	OneShot bool `envconfig:"ONE_SHOT" default:"false"`
 }
 
 func main() {
@@ -73,6 +85,17 @@ func main() {
 		sink = env.Sink
 	}
 
+	var ceOverrides *duckv1.CloudEventOverrides
+	if len(env.CEOverrides) > 0 {
+		overrides := duckv1.CloudEventOverrides{}
+		err := json.Unmarshal([]byte(env.CEOverrides), &overrides)
+		if err != nil {
+			log.Printf("[ERROR] Unparseable CloudEvents overrides %s: %v", env.CEOverrides, err)
+			os.Exit(1)
+		}
+		ceOverrides = &overrides
+	}
+
 	c, err := kncloudevents.NewDefaultClient(sink)
 	if err != nil {
 		log.Fatalf("failed to create client: %s", err.Error())
@@ -85,9 +108,10 @@ func main() {
 		period = time.Duration(p) * time.Second
 	}
 
-	source := types.ParseURLRef(
-		fmt.Sprintf("https://github.com/knative/eventing-sources/cmd/heartbeats/#%s/%s", env.Namespace, env.Name))
-	log.Printf("Heartbeats Source: %s", source)
+	if eventSource == "" {
+		eventSource = fmt.Sprintf("https://knative.dev/eventing-contrib/cmd/heartbeats/#%s/%s", env.Namespace, env.Name)
+		log.Printf("Heartbeats Source: %s", eventSource)
+	}
 
 	if len(label) > 0 && label[0] == '"' {
 		label, _ = strconv.Unquote(label)
@@ -100,22 +124,33 @@ func main() {
 	for {
 		hb.Sequence++
 
-		event := cloudevents.Event{
-			Context: cloudevents.EventContextV02{
-				Type:   "dev.knative.eventing.samples.heartbeat",
-				Source: *source,
-				Extensions: map[string]interface{}{
-					"the":   42,
-					"heart": "yes",
-					"beats": true,
-				},
-			}.AsV02(),
-			Data: hb,
+		event := cloudevents.NewEvent("1.0")
+		event.SetType(eventType)
+		event.SetSource(eventSource)
+		event.SetDataContentType(cloudevents.ApplicationJSON)
+		event.SetExtension("the", 42)
+		event.SetExtension("heart", "yes")
+		event.SetExtension("beats", true)
+
+		if ceOverrides != nil && ceOverrides.Extensions != nil {
+			for n, v := range ceOverrides.Extensions {
+				event.SetExtension(n, v)
+			}
 		}
 
-		if _, err := c.Send(context.Background(), event); err != nil {
+		if err := event.SetData(hb); err != nil {
+			log.Printf("failed to set cloudevents data: %s", err.Error())
+		}
+
+		log.Printf("sending cloudevent to %s", sink)
+		if _, _, err := c.Send(context.Background(), event); err != nil {
 			log.Printf("failed to send cloudevent: %s", err.Error())
 		}
+
+		if env.OneShot {
+			return
+		}
+
 		// Wait for next tick
 		<-ticker.C
 	}

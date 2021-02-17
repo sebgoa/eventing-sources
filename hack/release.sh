@@ -14,29 +14,46 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source $(dirname $0)/../vendor/github.com/knative/test-infra/scripts/release.sh
+# Documentation about this script and how to use it can be found
+# at https://github.com/knative/test-infra/tree/master/ci
+
+source $(dirname $0)/../vendor/knative.dev/test-infra/scripts/release.sh
 
 # Yaml files to generate, and the source config dir for them.
 declare -A COMPONENTS
 COMPONENTS=(
-  ["eventing-sources.yaml"]="config"
-  ["gcppubsub.yaml"]="contrib/gcppubsub/config"
+  ["appender.yaml"]="config/tools/appender"
+  ["awssqs.yaml"]="awssqs/config"
+  ["camel.yaml"]="camel/source/config"
+  ["couchdb.yaml"]="couchdb/source/config"
   ["event-display.yaml"]="config/tools/event-display"
-  ["camel.yaml"]="contrib/camel/config"
-  ["kafka.yaml"]="contrib/kafka/config"
-  ["awssqs.yaml"]="contrib/awssqs/config"
+  ["github.yaml"]="github/config"
+  ["kafka-source.yaml"]="kafka/source/config"
+  ["kafka-channel.yaml"]="kafka/channel/config"
+  ["natss-channel.yaml"]="natss/config"
+  ["prometheus-source.yaml"]="prometheus/config"
 )
 readonly COMPONENTS
 
 function build_release() {
+   # Update release labels if this is a tagged release
+  if [[ -n "${TAG}" ]]; then
+    echo "Tagged release, updating release labels to contrib.eventing.knative.dev/release: \"${TAG}\""
+    LABEL_YAML_CMD=(sed -e "s|contrib.eventing.knative.dev/release: devel|contrib.eventing.knative.dev/release: \"${TAG}\"|")
+  else
+    echo "Untagged release, will NOT update release labels"
+    LABEL_YAML_CMD=(cat)
+  fi
+
   local all_yamls=()
   for yaml in "${!COMPONENTS[@]}"; do
-  local config="${COMPONENTS[${yaml}]}"
-    echo "Building Knative Eventing Sources - ${config}"
-    ko resolve ${KO_FLAGS} -f ${config}/ > ${yaml}
+    local config="${COMPONENTS[${yaml}]}"
+    echo "Building Knative Eventing Contrib - ${config}"
+    # TODO(chizhg): reenable --strict mode after https://github.com/knative/test-infra/issues/1262 is fixed.
+    ko resolve ${KO_FLAGS} -f ${config}/ | "${LABEL_YAML_CMD[@]}" > ${yaml}
     all_yamls+=(${yaml})
   done
-  YAMLS_TO_PUBLISH="${all_yamls[@]}"
+  ARTIFACTS_TO_PUBLISH="${all_yamls[@]}"
 }
 
 main $@
